@@ -1,0 +1,24 @@
+#!/bin/bash
+ARG=$1
+FILE=/home/$USER/messages.log
+
+case "$ARG" in
+  clear) cat /dev/null > $FILE
+      ;;
+  count) echo $(wc -l $FILE | awk '{print $1}')
+      ;;
+  irc) USER=$2
+#      echo user: $USER
+      shift 2
+#      echo $@
+      MESSAGE=$@
+#      echo Message: $MESSAGE
+      echo $(date) IRC MESSAGE - $USER : "$MESSAGE" >> $FILE
+      twmnc -d 4000 -t "IRC - $USER" -c "$(echo $MESSAGE | cut -c1-50)" --pos bottom_right
+      ;;
+  mpd_current) twmnc -d 1000 --pos bottom_left -t MPD -c "$(mpc current)"
+      ;;
+  view) COUNT=$(wc -l $FILE | awk '{print $1}')
+       tail -n $COUNT $FILE
+      ;;
+esac

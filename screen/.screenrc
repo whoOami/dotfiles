@@ -1,0 +1,17 @@
+# bind c screen 1
+# bind ^c screen 1
+# bind 0 select 10
+# screen 1
+
+screen -t term
+
+bind 'l' next
+bind 'h' prev
+
+# term screen-256color
+
+hardstatus alwayslastline "%{= b}>> %L>%1`%? %?%{b}%u%? %-18=%?%{c} %{c}%-=%{c}%-w%{b}%n %t%{c}%+w"
+
+startup_message off
+
+windowlist string "%4n %h=%f"

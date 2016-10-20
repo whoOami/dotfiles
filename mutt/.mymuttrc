@@ -1,0 +1,137 @@
+source "gpg -dq $HOME/.my-pwds.gpg |"
+set imap_user		= ""
+set imap_pass		= $my_pw
+set smtp_url		= ""
+set smtp_pass		= $my_pw
+set from		= ""
+set realname		= "Alberto Castillo"
+set header_cache	= "~/.mutt/cache/headers"
+set message_cachedir	= "~/.mutt/cache/"
+set certificate_file 	= "~/.mutt/certificates"
+set folder		= imaps://imap.gmail.com/
+set spoolfile		= +INBOX
+set record = ""
+set postponed = "+[Gmail]/Drafts"
+mailboxes		= +INBOX
+unset imap_passive
+set imap_keepalive	= 300
+set mail_check		= 120
+set editor		= vim
+auto_view text/html
+alternative_order text/plain text/html
+set signature = /home/acg/.signature
+
+set date_format="%m/%d"
+set index_format="%2C | %Z[%d] %-30.30F (%-4.4c) %s"
+set sort = threads
+set sort_aux = reverse-last-date-received
+
+set envelope_from                    # which from?
+set sig_dashes                       # dashes before sig
+set edit_headers                     # show headers when composing
+set fast_reply                       # skip to compose when replying
+set askcc                            # ask for CC:
+set fcc_attach                       # save attachments with the body
+unset mime_forward                   # forward attachments as part of body
+set forward_format = "Fwd: %s"       # format of subject when forwarding
+set forward_decode                   # decode when forwarding
+set attribution = "On %d, %n wrote:" # format of quoting header
+set reply_to                         # reply to Reply to: field
+set reverse_name                     # reply as whomever it was to
+set include                          # include message in replies
+set forward_quote
+
+set sleep_time = 0
+
+macro index,pager A "<save-message>=[Gmail]/Todos<enter>" "Archive Message"
+
+bind index <tab> imap-fetch-mail
+bind generic,alias,attach,browser,editor,index,compose,pager,pgp,postpone ':' noop
+
+bind pager j next-line
+bind pager k previous-line
+bind attach,index,pager \CD next-page
+bind attach,index,pager \CU previous-page
+bind pager g top
+bind pager G bottom
+bind pager R group-reply
+bind attach,index g first-entry
+bind attach,index G last-entry
+
+# Colours for items in the index
+color index brightcyan black ~N
+# Hmm, don't like this.
+#color index brightgreen black "~N (~x byers.world)|(~x byers.x)|(~x langly.levallois123.axialys.net)|(~x the.earth.li)"
+color index brightyellow black ~F
+color index black brightyellow ~T
+color index brightred black ~D
+mono index bold ~N
+mono index bold ~F
+mono index bold ~T
+mono index bold ~D
+
+# Highlights inside the body of a message.
+
+# URLs
+color body brightgreen black "(http|ftp|news|telnet|finger)://[^ \"\t\r\n]*"
+color body brightgreen black "mailto:[-a-z_0-9.]+@[-a-z_0-9.]+"
+mono body bold "(http|ftp|news|telnet|finger)://[^ \"\t\r\n]*"
+mono body bold "mailto:[-a-z_0-9.]+@[-a-z_0-9.]+"
+
+# email addresses
+color body brightgreen black "[-a-z_0-9.%$]+@[-a-z_0-9.]+\\.[-a-z][-a-z]+"
+#mono body bold "[-a-z_0-9.%$]+@[-a-z_0-9.]+\\.[-a-z][-a-z]+"
+
+# header
+color header green black "^from:"
+color header green black "^to:"
+color header green black "^cc:"
+color header green black "^date:"
+color header yellow black "^newsgroups:"
+color header yellow black "^reply-to:"
+color header brightcyan black "^subject:"
+color header red black "^x-spam-rule:"
+color header green black "^x-mailer:"
+color header yellow black "^message-id:"
+color header yellow black "^Organization:"
+color header yellow black "^Organisation:"
+color header yellow black "^User-Agent:"
+color header yellow black "^message-id: .*pine"
+color header yellow black "^X-Fnord:"
+color header yellow black "^X-WebTV-Stationery:"
+color header yellow black "^X-Message-Flag:"
+color header yellow black "^X-Spam-Status:"
+color header yellow black "^X-SpamProbe:"
+color header red black "^X-SpamProbe: SPAM"
+
+
+# Coloring quoted text - coloring the first 7 levels:
+color quoted cyan black
+color quoted1 yellow black
+color quoted2 red black
+color quoted3 green black
+color quoted4 cyan black
+color quoted5 yellow black
+color quoted6 red black
+color quoted7 green black
+
+
+# Default color definitions
+#color hdrdefault white green
+color signature brightmagenta black
+color indicator black white
+color attachment black green
+color error red black
+color message white black
+color search brightwhite magenta
+color status brightyellow black
+color tree brightblue black
+color normal white black
+color tilde green black
+color bold brightyellow black
+#color underline magenta black
+color markers brightcyan black
+# Colour definitions when on a mono screen
+mono bold bold
+mono underline underline
+mono indicator reverse

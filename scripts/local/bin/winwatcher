@@ -1,0 +1,79 @@
+#!/bin/sh
+#
+# wildefyr & z3bra - 2016 (c) MIT
+# catch window events from wew
+
+usage() {
+    cat >&2 << EOF
+Usage: $(basename $0) [-d|--debug] [-h|--help]
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+case "$1" in
+    -d|--debug)
+        . fyrerc
+
+        wew | while IFS=: read -r ev wid; do
+
+        cat << EOF
+$ev $wid
+    $(name $wid)
+    $(class $wid)
+    $(process $wid)
+EOF
+        done
+        ;;
+    h|help|-h|--help)
+        usage 0
+        ;;
+esac
+
+wew | while IFS=: read ev wid; do
+    . fyrerc
+
+    case "$ev" in
+        7)
+            test "$SLOPPY" = "true" && {
+                wattr o "$wid" || focus --wid "$wid" --disable -q
+            }
+            ;;
+        16)
+            test "$WORKFLOW" = "workspaces" && {
+                # add tiling
+                continue
+            } || {
+                wattr o "$wid" || winopen "$wid"
+            }
+
+            back
+            ;;
+        17)
+            # clean hover
+            hover -q -c "$wid"
+            # clean groups
+            windows -q -c "$wid"
+            # clean fullscreen
+            fullscreen -q -c "$wid"
+            ;;
+        18)
+            wattr "$(pfw)" || focus --prev
+
+            back
+            ;;
+        19)
+            test "$WORKFLOW" = "workspaces" && {
+                test -f "$GROUPSDIR/active" && {
+                    windows -q -a "$wid" "$(head -n 1 "$GROUPSDIR/active")"
+                } || {
+                    windows -q -a "$wid" 1
+                }
+
+                # this is where we add tiling
+            }
+
+            back
+            ;;
+    esac
+done

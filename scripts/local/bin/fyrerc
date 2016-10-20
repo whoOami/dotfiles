@@ -1,0 +1,235 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# default functions and variables for fyre scripts
+
+# check there is a display running
+test -z "$DISPLAY" && {
+    printf '%s\n' "The terminal you are on is not connected to an X11 session."
+    exit 1
+}
+
+    # environment files
+###############################################################################
+
+CONFIGDIR=${CONFIGDIR:-~/.config/acg}
+LAYOUTDIR=${LAYOUTDIR:-$CONFIGDIR/layouts}
+test ! -d "$LAYOUTDIR" && mkdir -p "$LAYOUTDIR"
+
+FYREDIR=${FYREDIR:-/home/acg/tmp/acg}
+GROUPSDIR=${GROUPSDIR:-$FYREDIR/groups}
+test ! -d "$GROUPSDIR" && mkdir -p "$GROUPSDIR"
+
+HOVER=${HOVER:-$FYREDIR/hover}
+FSFILE=${FSFILE:-$FYREDIR/fullinfo}
+SCREENS=${SCREENS:-$FYREDIR/screens}
+WIDLOCK=${WIDLOCK:-$FYREDIR/.widlock}
+
+    # source user settings
+###############################################################################
+
+test -f $CONFIGDIR/config && {
+    . $CONFIGDIR/config
+} || {
+    printf '%s\n' "No config file found at ${CONFIGDIR}/config. Killing X11."
+    pkill xinit
+}
+
+    # functions
+###############################################################################
+
+intCheck() {
+    test $1 -ne 0 2> /dev/null
+    test $? -ne 2 || return 1
+}
+
+name() {
+    test $# -eq 0 && return 1
+    for wid in $@; do
+        lsw -a | grep -q "$wid" && {
+            xprop -id "$wid" WM_CLASS | cut -d\" -f 2
+            unset -v wid
+        } || {
+            printf '%s\n' "Please enter a valid window id." >&2
+            unset -v wid
+            return 1
+        }
+    done
+}
+
+class() {
+    test $# -eq 0 && return 1
+    for wid in $@; do
+        lsw -a | grep -q "$wid" && {
+            xprop -id "$wid" WM_CLASS | cut -d\" -f 4
+            unset -v wid
+        } || {
+            printf '%s\n' "Please enter a valid window id." >&2
+            unset -v wid
+            return 1
+        }
+    done
+}
+
+process() {
+    test $# -eq 0 && return 1
+    for wid in $@; do
+        lsw -a | grep -q "$wid" && {
+            xprop -id "$wid" _NET_WM_PID | cut -d\  -f 3
+            unset -v wid
+        } || {
+            printf '%s\n' "Please enter a valid window id." >&2
+            unset -v wid
+            return 1
+        }
+    done
+}
+
+generateScreenInfo() {
+    type xrandr 2>&1 > /dev/null && {
+        # turn all monitors on to easily retrieve their values
+        xrandr | grep -w 'connected' | while read -r connected; do
+            screen=$(printf '%s\n' "$connected" | cut -d\  -f 1)
+            xrandr --output $screen --auto
+        done
+
+        # regenerate screen data on new X11 load
+        test -f "$SCREENS" && rm -f $SCREENS
+
+        # get all connected monitors
+        connected=$(xrandr | grep -w 'connected')
+
+        test $(printf '%s\n' "$connected" | wc -l) -gt 1 && {
+            # set the xrandr 'primary' screen as 'screen 1' in $SCREENS
+            ordered=$(printf '%s\n' "$connected" | grep -w "primary" && \
+                      printf '%s\n' "$connected" | grep -vw "primary")
+        } || {
+            ordered=$connected
+        }
+
+        printf '%s\n' "$ordered" | sed 's/primary //' | while read -r monitor; do
+            screen=$(printf '%s\n' "$monitor" | cut -d\  -f 1)
+            geometry=$(printf '%s\n' "$monitor" | cut -d\  -f 3)
+            screenX=$(printf '%s\n' "$geometry" | cut -d'+' -f 2)
+            screenY=$(printf '%s\n' "$geometry" | cut -d'+' -f 3)
+            screenW=$(printf '%s\n' "$geometry" | cut -d'x' -f 1)
+            screenH=$(printf '%s\n' "$geometry" | cut -d'x' -f 2 | cut -d'+' -f 1)
+            printf '%s\n' "$screen $screenX $screenY $screenW $screenH" >> "$SCREENS"
+        done
+
+        unset -v connected ordered
+    } || {
+        # who doesn't use xrandr at this point?! honestly
+        printf '%s\n' "xrandr was not found on your \$PATH." >&2
+        printf '%s\n' "multi-monitor detection will not work." >&2
+        exit 1
+    }
+}
+
+findCurrentScreen() {
+    # to work with pointer
+    test $# -gt 0 && {
+        intCheck $1 && X=$1 || return 1
+        intCheck $2 && Y=$2 || return 1
+    }
+
+    test ! -z $X && test ! -z $Y && {
+        counter=0
+        while read -r monitor; do
+            counter=$((counter + 1))
+
+            # test if current window is to the left or above the screen in the loop
+            monitorX=$(printf '%s\n' "$monitor" | cut -d\  -f 2)
+            test $X -lt $monitorX && continue
+            monitorY=$(printf '%s\n' "$monitor" | cut -d\  -f 3)
+            test $Y -lt $monitorY && continue
+
+            # test if current window is to the right or below the screen in the loop
+            monitorW=$(printf '%s\n' "$monitor" | cut -d\  -f 4)
+            test $X -gt $((monitorX + monitorW)) && continue
+            monitorH=$(printf '%s\n' "$monitor" | cut -d\  -f 5)
+            test $Y -gt $((monitorY + monitorH)) && continue
+
+            unset -v monitorX monitorY monitorW monitorH
+
+            SCREEN=$counter
+            return
+        done < "$SCREENS"
+    }
+
+    # uh oh current window X or Y is off screen or X or Y are empty
+    SCREEN=1
+    #TODO: write function to get screen value closest to X and Y coordinates
+}
+
+# get correct SW and SH of given screen or current screen
+retrieveScreenValues() {
+    # regenerate screen info if it's missing
+    test ! -f "$SCREENS" && generateScreenInfo
+
+    intCheck $1 && test $1 -le $(wc -l < $SCREENS) && {
+        SCREEN=$1
+    } || {
+        findCurrentScreen
+    }
+
+    # get passed screen X Y W H
+    monitor="$(head -n $SCREEN $SCREENS | tail -1)"
+    SX=$(printf '%s\n' "$monitor" | cut -d\  -f 2)
+    SY=$(printf '%s\n' "$monitor" | cut -d\  -f 3)
+    SW=$(printf '%s\n' "$monitor" | cut -d\  -f 4)
+    SH=$(printf '%s\n' "$monitor" | cut -d\  -f 5)
+
+    # calculate variables for the new monitor
+    eSW=$((SW - 2*XGAP))
+    eSH=$((SH - TGAP - BGAP))
+
+    minW=$((eSW/COLS - IGAP))
+    minH=$((eSH/ROWS - VGAP))
+
+    unset -v monitor
+}
+
+# test if a point is over the top of a window
+underneath() {
+    test $# -eq 0 && {
+        X=$(wmp | cut -d\  -f 1)
+        Y=$(wmp | cut -d\  -f 2)
+    } || {
+        intCheck $1 && X=$1 || return 1
+        intCheck $2 && Y=$2 || return 1
+    }
+
+    # start from the highest stacked window
+    for wid in $(lsw | tac); do
+        # we won't get a match if the left and top edges greater than X or Y
+        windowX=$(wattr x "$wid")
+        test $windowX -gt $X && continue
+        windowY=$(wattr y "$wid")
+        test $windowY -gt $Y && continue
+
+        # we won't get a match if the right and bottom edges are less than X or Y
+        windowW=$(wattr w "$wid")
+        test $((windowX + windowW)) -lt $X && continue
+        windowH=$(wattr h "$wid")
+        test $((windowY + windowH)) -lt $Y && continue
+
+        printf '%s\n' "$wid"
+        unset -v wid
+        return
+    done
+}
+
+    # window management
+###############################################################################
+
+PFW="$(pfw)"
+CUR=${2:-"$PFW"}
+
+X=$(wattr x "$CUR" 2> /dev/null)
+Y=$(wattr y "$CUR" 2> /dev/null)
+W=$(wattr w "$CUR" 2> /dev/null)
+H=$(wattr h "$CUR" 2> /dev/null)
+
+# multiple monitor support
+retrieveScreenValues

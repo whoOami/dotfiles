@@ -1,0 +1,28 @@
+battery_path=/sys/class/power_supply/BAT0
+
+while true; do
+
+#battery()
+#{
+#  b_full=$(sed 1q $battery_path/*_full)
+#  b_now=$(sed 1q $battery_path/*_now)
+#  charge=$(printf '%s' "$(( 100 * $b_now / $b_full ))")
+#
+#  printf "%-2s\n" "$charge"
+#}
+
+# Volume Level
+#  DWM_VOL="$(status)";
+
+# Date and Time
+#  DWM_CLOCK=$( date '+%a %d/%m/%Y  %H:%M' );
+
+
+# Battery
+
+# Overall output command
+  DWM_STATUS="$(conky)"
+  xsetroot -name "$DWM_STATUS"
+  sleep 2;
+
+done &

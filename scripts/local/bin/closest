@@ -1,0 +1,137 @@
+#!/bin/sh
+#
+# wildefyr & z3bra - 2016 (c) MIT
+# find and focus the closest window in a specific direction
+
+ARGS="$@"
+
+usage() {
+    cat >&2 << EOF
+Usage: $(basename $0) [direction]
+    -u | --up:    Focus next window up.
+    -l | --left:  Focus next window left.
+    -d | --down:  Focus next window down.
+    -r | --right: Focus next window right.
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+windowsUp() {
+    wid=$( (lsw; pfw) | sort -u | xargs wattr yi | sort -nr | \
+            sed "0,/$PFW/d" | sed "1s/^[0-9]* //p;d")
+    # windows=$( (lsw; pfw) | sort -u | xargs wattr yxi | \
+    #             sort -k1nr -k2nr | sed "/$PFW/,\$d")
+}
+
+windowsDown() {
+    wid=$( (lsw; pfw) | sort -u | xargs wattr yi | sort -n | \
+            sed "0,/$PFW/d" | sed "1s/^[0-9]* //p;d")
+    # windows=$( (lsw; pfw) | sort -u | xargs wattr yxi | \
+    #             sort -k1nr -k2nr | sed "/$PFW/,\$d")
+}
+
+windowsLeft() {
+    wid=$( (lsw; pfw) | sort -u | xargs wattr xi | sort -nr | \
+            sed "0,/$PFW/d" | sed "1s/^[0-9]* //p;d")
+    # windows=$( (lsw; pfw) | sort -u | xargs wattr xyi | \
+    #             sort -k1nr -k2nr | sed "/$PFW/,\$d")
+}
+
+windowsRight() {
+    wid=$( (lsw; pfw) | sort -u | xargs wattr xi | sort -n | \
+            sed "0,/$PFW/d" | sed "1s/^[0-9]* //p;d")
+    # windows=$( (lsw; pfw) | sort -u | xargs wattr xyi | \
+    #             sort -k1nr -k2nr | sed "/$PFW/,\$d")
+}
+
+windowClosest() {
+    counter=0
+    finalHypotenuse=0
+    while read -r line; do
+        counter=$((counter + 1))
+
+        case "$1" in
+            -u|--up|-d|--down)
+                Y=$(printf '%s' "$line" | cut -d\  -f 1)
+                X=$(printf '%s' "$line" | cut -d\  -f 2)
+                ;;
+            -l|--left|-r|--right)
+                X=$(printf '%s' "$line" | cut -d\  -f 1)
+                Y=$(printf '%s' "$line" | cut -d\  -f 2)
+                ;;
+        esac
+
+        xlength=$(($(wattr x $PFW) + X))
+        ylength=$(($(wattr y $PFW) + Y))
+
+        hypotenuse=$(((xlength * xlength) + (ylength * ylength)))
+        hypotenuse="$(echo "sqrt ($hypotenuse)" | bc -l)"
+
+        test $(echo "$hypotenuse < $finalHypotenuse" | bc -l) -eq 0 && \
+            finalWid=$(printf '%s' "$line" | cut -d\  -f 3)
+
+        test $counter -eq $numberOfWindows && printf '%s\n' "$finalWid"
+    done
+
+    unset -v curX curY
+}
+
+main() {
+    . fyrerc
+
+    case "$1" in
+        -u|--up)    windowsUp    ;;
+        -d|--down)  windowsDown  ;;
+        -l|--left)  windowsLeft  ;;
+        -r|--right) windowsRight ;;
+        *)          usage 1      ;;
+    esac
+
+    # numberOfWindows=$(printf '%s\n' "$windows" | wc -l)
+    # wid=$(printf '%s\n' "$windows" | windowClosest $1)
+
+    test ! -z "$wid" && {
+        focus --wid "$wid"
+        return
+    }
+
+    # WARNING: this really doesn't work yet due to synergy being a bitch
+
+    # test dependencies
+    type xdotool 2>&1 > /dev/null || return
+    type synergys 2>&1 > /dev/null || return
+
+    # test if a synergy instance is running
+    pgrep synergy 2>&1 > /dev/null && {
+        computer=$(sed "1,/section: links/d; /end/Q; /$(hostname)/d; /.*:/Q" "$SYNCONF")
+
+        # sadly there's no provided cli tool to switch screens so we have fake the input
+        case "$(printf '%s\n' "$1" | sed 's/-//g' | cut -c 1)" in
+            u) direction=$(printf '%s' "up")    ;;
+            l) direction=$(printf '%s' "left")  ;;
+            d) direction=$(printf '%s' "down")  ;;
+            r) direction=$(printf '%s' "right") ;;
+        esac
+
+        combo=$(sed '1,/section: options/d; /end/Q' "$SYNCONF" | \
+        grep "keystroke.*$direction" | cut -d'(' -f 2 | cut -d')' -f 1)
+
+        test ! -z "$combo" && xdotool key --clearmodifiers $combo
+    }
+}
+
+test $# -eq 0 && usage 1
+
+for arg in $ARGS; do
+    case "$arg" in
+        -q|--quiet)       QUIETFLAG=true ;;
+        h|help|-h|--help) usage 0        ;;
+    esac
+done
+
+test "$QUIETFLAG" = "true" && {
+    main $ARGS 2>&1 > /dev/null
+} || {
+    main $ARGS
+}

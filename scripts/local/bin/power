@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# power menu for fyre
+
+ARGS="$@"
+
+usage() {
+    cat >&2 << EOF
+Usage: $(basename $0) [-lerp]
+    -e | --exit:     Exit fyre.
+    -l | --lock:     Lock the session.
+    -r | --reboot:   Reboot the machine.
+    -p | --poweroff: Poweroff the machine.
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+killFyre() {
+    pkill eventually
+}
+
+lockFyre() {
+    mpvc --stop -q
+
+    test -d "/sys/class/backlight/intel_backlight" && {
+        type xbacklight 2>&1 > /dev/null && {
+            LIGHT=$(xbacklight -get)
+            LIGHT=$(echo "($LIGHT+0.5)/1" | bc)
+            xbacklight -set 0 && slock && xbacklight -set $LIGHT
+            return 0
+        }
+    }
+
+    xset dpms force suspend
+
+    type slock 2>&1 > /dev/null && {
+        slock
+    }
+}
+
+poweroffFyre() {
+    killFyre
+    type hostnamectl 2>&1 > /dev/null && {
+        systemctl poweroff
+    } || {
+        sudo poweroff 2>/dev/null
+    }
+}
+
+restartFyre() {
+    killFyre
+    type hostnamectl 2>&1 > /dev/null && {
+        systemctl reboot
+    } || {
+        sudo reboot 2>/dev/null
+    }
+}
+
+main() {
+    case "$1" in
+        "-l"|"--lock")     lockFyre     ;;
+        "-e"|"--exit")     killFyre     ;;
+        "-r"|"--restart")  restartFyre  ;;
+        "-p"|"--poweroff") poweroffFyre ;;
+        *)                 usage 1      ;;
+    esac
+}
+
+test $# -eq 0 && usage 1
+
+for arg in $ARGS; do
+    case "$arg" in
+        -q|--quiet)       QUIETFLAG=true ;;
+        h|help|-h|--help) usage 0        ;;
+    esac
+done
+
+test "$QUIETFLAG" = "true" && {
+    main $ARGS 2>&1 > /dev/null
+} || {
+    main $ARGS
+}

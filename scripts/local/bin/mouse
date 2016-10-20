@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# toggle mouse device
+
+ARGS="$@"
+
+usage() {
+    cat << EOF
+Usage: $(basename $0) [-edt]
+    --disable: Disable the mouse and move it to the bottom left corner.
+    --enable:  Enable the mouse and move it to the centre of the focused window.
+    --toggle:  Toggle between enabled and disabled states.
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+getMouseDevice() {
+    type xinput 2>&1 > /dev/null && {
+        device="$(xinput | grep -i "mouse\|trackpad" | \
+                  awk '{printf "%s\n",$9}' | cut -d= -f 2)"
+    }
+
+    test ! -z "$device" && {
+        printf '%s\n' "$device"
+    } || {
+        printf '%s\n' "N/A"
+    }
+}
+
+getMouseStatus() {
+    device=$(getMouseDevice)
+    test "$device" = "N/A" && return 1
+
+    status=$(xinput list-props $device | awk '/Device Enabled/ {printf "%s\n", $NF}')
+    printf '%s\n' "$status"
+}
+
+moveMouseEnabled() {
+    wattr "$1" && {
+        wid="$1"
+    } || {
+        printf '%s\n' "Please enter a valid window id." >&2
+        return 1
+    }
+
+    # move mouse to the middle of the given window id
+    wmp -a $(($(wattr x "$wid") + ($(wattr w "$wid") / 2))) \
+           $(($(wattr y "$wid") + ($(wattr h "$wid") / 2)))
+
+    unset -v wid
+}
+
+# TODO: find way of fully hiding the mouse completely
+moveMouseDisabled() {
+    findCurrentScreen $(wmp)
+    retrieveScreenValues $SCREEN
+    wmp $((SX + SW)) $((SY + SH))
+}
+
+enableMouse() {
+    device=$(getMouseDevice)
+    xinput --enable $device
+    moveMouseEnabled "$PFW"
+}
+
+disableMouse() {
+    device=$(getMouseDevice)
+    moveMouseDisabled
+    xinput --disable $device
+}
+
+toggleMouse() {
+    device=$(getMouseDevice)
+
+    test "$device" != "N/A" && {
+        status=$(getMouseStatus)
+        test $status -eq 1 && status=0 || status=1
+        test $status -eq 1 && moveMouseEnabled "$PFW" || moveMouseDisabled
+        xinput --set-prop --type=int $device "Device Enabled" $status
+    } || {
+        moveMouseDisabled
+        return 1
+    }
+}
+
+main() {
+    . fyrerc
+
+    case $1 in
+        "-t"|"--toggle")  toggleMouse  ;;
+        "-e"|"--enable")  enableMouse  ;;
+        "-d"|"--disable") disableMouse ;;
+        *)                usage 1      ;;
+    esac
+}
+
+test $# -eq 0 && return 0
+
+for arg in $ARGS; do
+    case "$arg" in
+        -q|--quiet)       QUIETFLAG=true ;;
+        h|help|-h|--help) usage 0        ;;
+    esac
+done
+
+test "$QUIETFLAG" = "true" && {
+    main "$ARGS" 2>&1 > /dev/null
+} || {
+    main "$ARGS"
+}

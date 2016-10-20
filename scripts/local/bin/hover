@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# make the window 'hover' over others
+
+ARGS="$@"
+
+usage() {
+    cat >&2 << EOF
+Usage: $(basename $0) <wid>
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+widCheck() {
+    case "$1" in
+        0x*)
+            return 0
+            ;;
+        *)
+            printf '%s\n' "Please enter a valid window id." >&2
+            exit 1
+            ;;
+    esac
+}
+
+cleanHover() {
+    cleanWid=$1
+    widCheck "$cleanWid"
+
+    . fyrerc
+
+    test -f "$HOVER" && {
+        grep -qw "$cleanWid" "$HOVER" && {
+            test ! -z "$hoverWid" && {
+                printf '%s\n' "${hoverWid} no longer hovers."
+            }
+
+            buffer="$(grep -wv "$cleanWid" "$HOVER")"
+            test -z "$buffer" 2> /dev/null && {
+                rm -f "$HOVER"
+            } || {
+                printf '%s\n' "$buffer" > "$HOVER"
+            }
+
+            exit 0
+        }
+    } || {
+        return 0
+    }
+}
+
+main() {
+    . fyrerc
+
+    wattr "$1" && hoverWid="$1" || hoverWid="$PFW"
+    cleanHover "$hoverWid"
+
+    printf '%s\n' "$hoverWid" >> "$HOVER"
+    printf '%s\n' "${hoverWid} now hovers."
+}
+
+for arg in $ARGS; do
+    test "$CLEANFLAG" = "true" && cleanHover "$arg" && exit 0
+
+    case "$arg" in
+        -c|--clean)       CLEANFLAG=true ;;
+        -q|--quiet)       QUIETFLAG=true ;;
+        -h|--help|h|help) usage 0        ;;
+    esac
+done
+
+test "$QUIETFLAG" = "true" && {
+    main $ARGS 2>&1 > /dev/null
+} || {
+    main $ARGS
+}

@@ -1,0 +1,5 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =3
+let g:netrw_dirhist_1='/home/acg/dev/cpp/uni/data_structures/proj_2/array_as_linkedlist'
+let g:netrw_dirhist_2='/home/acg/.config/mutt'
+let g:netrw_dirhist_3='/home/acg/.oh-my-zsh/plugins/web-search'

@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# killwa doesn't handle edge cases very well
+
+. fyrerc
+
+# test if window is currently alive
+wattr "$1" && wid="$1" || exit 1
+
+case "$(class $wid)" in
+    telegram|Wine)
+        killw "$wid"
+        ;;
+    *)
+        type killwa 2>&1 > /dev/null && {
+            killwa "$wid"
+        } || {
+            killw "$wid"
+        }
+        ;;
+esac

@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# wildefyr - 2016 (c) MIT
+# wrapper to find any visible window that matches a string
+
+ARGS="$@"
+
+usage() {
+    cat >&2 << EOF
+Usage: $(basename $0) [Search String]
+EOF
+
+    test $# -eq 0 || exit $1
+}
+
+nameAll() {
+    for wid in $(lsw); do
+        printf '%s\n' "$wid $(name "$wid")"
+    done
+}
+
+classAll() {
+    for wid in $(lsw); do
+        printf '%s\n' "$wid $(class "$wid")"
+    done
+}
+
+titleAll() {
+    for wid in $(lsw); do
+        printf '%s\n' "$wid $(wname "$wid")"
+    done
+}
+
+showAll() {
+    nameAll
+    classAll
+    titleAll
+}
+
+main() {
+    . fyrerc
+
+    showAll | grep -i "$@" | cut -d\  -f 1 | sort | uniq
+}
+
+test $# -eq 0 && usage 1
+
+for arg in $ARGS; do
+    case "$arg" in
+        -q|--quiet)       QUIETFLAG=true ;;
+        h|help|-h|--help) usage 0        ;;
+    esac
+done
+
+test "$QUIETFLAG" = "true" && {
+    main $ARGS 2>&1 > /dev/null
+} || {
+    main $ARGS
+}

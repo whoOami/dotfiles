@@ -1,0 +1,34 @@
+#!/bin/bash
+ARG=$1
+FILE=/home/$USER/messages.log
+
+case "$ARG" in
+    clear) cat /dev/null > $FILE
+        ;;
+    count) echo $(wc -l $FILE | awk '{print $1}')
+        ;;
+    irc) USER=$2
+        shift 2
+        MESSAGE=$@
+        echo $(date '+%Y/%m/%d %H:%M') IRC - $USER : "$MESSAGE" >> $FILE
+        popup 3 " irc - $USER" "$(echo $MESSAGE | cut -c1-50)"
+        ;;
+    mpd_current)
+        popup 3 "♪ currently playing: " "$(mpc current)"
+        ;;
+    date)
+        popup 3 "date: " "$(date '+%Y/%m/%d %H:%M')"
+        ;;
+    volume)
+        popup 3 "volume: " "$(amixer get Master | sed -n 's/^.*\[\([0-9]\+%\).*$/\1/p' | uniq)"
+        ;;
+    battery)
+        popup 3 "battery level: " "$(cat /sys/class/power_supply/BAT0/capacity)"
+        ;;
+    info)
+        popup 3 " date:" "$(date '+%Y/%m/%d %H:%M')" " | volume:" "$(amixer get Master | sed -n 's/^.*\[\([0-9]\+%\).*$/\1/p' | uniq)" " | battery:" "$(cat /sys/class/power_supply/BAT0/capacity)"
+        ;;
+    view) COUNT=$(wc -l $FILE | awk '{print $1}')
+        tail -n $COUNT $FILE | less
+        ;;
+esac

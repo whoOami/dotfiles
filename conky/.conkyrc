@@ -1,0 +1,13 @@
+out_to_console yes
+out_to_x no
+background no
+update_interval 1
+total_run_times 1
+use_spacer none
+
+TEXT
+⏲ ${time %d·%m•%H:%M}                        \
+🔉 ${exec status}                        \
+📶 ${wireless_essid wlp6s0} ${wireless_link_qual wlp6s0}                     \
+${if_match ${battery_percent} < 100}🔋 ${battery_percent}% $endif\
+⛩ ~/acg;${if_match ${exec notif count} > 0}(✉)$endif

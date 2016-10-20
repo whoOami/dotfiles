@@ -1,0 +1,2 @@
+#!/bin/sh
+printf '%s %s' $(watom $(pfw) _SURF_URI) $(watom $(pfw) WM_NAME) | xclip -i -sel clip

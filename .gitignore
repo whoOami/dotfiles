@@ -1,0 +1,15 @@
+mpd/.mpd/mpd.log
+mpd/.mpd/mpdstate
+
+ranger/.config/ranger/colorschemes/__init__.py
+ranger/.config/ranger/colorschemes/__init__.pyo
+ranger/.config/ranger/colorschemes/gnamerica.pyo
+
+ncmpcpp/.config/ncmpcpp/lyrics
+
+weechat/.weechat/
+
+mutt/.mutt/muttrc
+
+surf/.config/surf/cache
+surf/.config/surf/cookies.txt
